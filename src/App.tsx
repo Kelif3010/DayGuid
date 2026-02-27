@@ -722,9 +722,35 @@ function Dashboard({userId,settings,onSettings,onStartChild,onLogout}:
   const [showCopyPlan,setShowCopyPlan]=useState(false);
   const [copyDays,setCopyDays]=useState<number[]>([]);
   const [tmplBusy,setTmplBusy]=useState(false);
+  const [autoStartDate,setAutoStartDate]=useState<string|null>(null);
   const listRef=useRef<HTMLDivElement>(null);const touchStartRef=useRef<any>(null);
 
   useEffect(()=>{loadProfiles();},[]);
+
+  // Auto-Start Kindermodus wenn Startzeit erreicht
+  useEffect(()=>{
+    if(!selProfile||taskList.length===0||!schedule)return;
+    const todayStr=new Date().toISOString().split('T')[0];
+    const checkTime=()=>{
+      if(autoStartDate===todayStr)return; // Heute bereits gestartet
+      const now=new Date();const todayDow=now.getDay();
+      if(schedule.days_of_week.length>0&&!schedule.days_of_week.includes(todayDow))return;
+      const nowMin=now.getHours()*60+now.getMinutes();
+      const [h,m]=taskList[0].startTime.split(':').map(Number);
+      const firstStart=h*60+m;
+      const last=taskList[taskList.length-1];
+      const [lh,lm]=last.startTime.split(':').map(Number);
+      const lastEnd=lh*60+lm+last.duration;
+      if(nowMin>=firstStart&&nowMin<lastEnd){
+        setAutoStartDate(todayStr);
+        const idx=profileList.indexOf(selProfile);
+        onStartChild({name:selProfile.name,avatar:getAvatar(selProfile,idx)},taskList,selProfile.id);
+      }
+    };
+    checkTime();
+    const iv=setInterval(checkTime,30000);
+    return()=>clearInterval(iv);
+  },[selProfile,taskList,schedule,autoStartDate]);
 
   const loadProfiles=async()=>{try{const p=await profilesApi.list();setProfileList(p);
     if(p.length>0){setSelProfile(p[0]);await loadScheduleAndTasks(p[0].id);}setLoading(false);
