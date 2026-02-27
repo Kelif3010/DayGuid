@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import { CheckCircle, Clock, HelpCircle, Pause, Play, Lock, Trash2, X as XIcon, Eye, EyeOff } from "lucide-react";
 import { supabase, auth, profilesApi, schedulesApi, tasksApi, completionsApi, stickersApi, settingsApi, mediaUpload, mediaUploadBlob } from "./lib/supabase";
 import type { Profile, Schedule, Task, AppSettings } from "./lib/supabase";
 
@@ -9,7 +10,7 @@ import type { Profile, Schedule, Task, AppSettings } from "./lib/supabase";
 ══════════════════════════════════════════════════════════════*/
 
 // ═══ CONSTANTS ═══════════════════════════════════════════════
-const C={pri:"#4A90D9",priL:"#6BA5E7",ok:"#5CB85C",okL:"#7ED07E",warn:"#F0AD4E",warnL:"#F5C882",err:"#D9534F",
+const C={pri:"#4A90D9",priL:"#6BA5E7",ok:"#5CB85C",okL:"#7ED07E",warn:"#F0AD4E",warnL:"#F5C882",yel:"#FFC107",err:"#D9534F",
   bg:"#F8F9FA",t1:"#2D3748",t2:"#718096",t3:"#A0AEC0",bdr:"#E2E8F0",
   g50:"#F7FAFC",g100:"#EDF2F7",g200:"#E2E8F0",g300:"#CBD5E0",g400:"#A0AEC0",done:"#C4CDD5"};
 const F="'Quicksand',sans-serif";
@@ -109,7 +110,7 @@ function CircTimer({rem,total,size=200}:{rem:number;total:number;size?:number}){
 
 // ═══ ACTION BUTTON ═══════════════════════════════════════════
 function ABtn({label,icon,color,onClick,sz="lg",disabled=false,tabIndex=0}:
-  {label:string;icon:string;color:string;onClick:()=>void;sz?:string;disabled?:boolean;tabIndex?:number}){
+  {label:string;icon:string|ReactNode;color:string;onClick:()=>void;sz?:string;disabled?:boolean;tabIndex?:number}){
   const [p,setP]=useState(false);const big=sz==="lg";
   return <button onClick={onClick} disabled={disabled} tabIndex={tabIndex}
     onTouchStart={()=>setP(true)} onTouchEnd={()=>setP(false)}
@@ -139,14 +140,14 @@ function Timeline({tasks,ci,doneSet}:{tasks:UITask[];ci:number;doneSet:Set<strin
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,
           opacity:dn?0.35:cur?1:0.5,transform:cur?"scale(1.18)":"scale(1)",transition:"all 0.3s ease"}}>
           <div style={{width:cur?50:40,height:cur?50:40,borderRadius:"50%",
-            background:dn?C.done:cur?t.color||C.priL:C.g200,
-            border:cur?`3px solid ${C.pri}`:"2px solid transparent",
+            background:dn?C.done:cur?C.ok:C.pri+"33",
+            border:cur?`3px solid ${C.ok}`:"2px solid transparent",
             display:"flex",alignItems:"center",justifyContent:"center",fontSize:cur?22:18,
-            boxShadow:cur?`0 0 0 4px ${C.pri}20`:"none",transition:"all 0.3s"}}>{dn?"✓":t.icon}</div>
+            boxShadow:cur?`0 0 0 4px ${C.ok}30`:"none",transition:"all 0.3s"}}>{dn?"✓":t.icon}</div>
           <span style={{fontFamily:F,fontSize:9,fontWeight:600,color:cur?C.t1:C.t2,maxWidth:56,textAlign:"center",
             whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.name}</span>
         </div>
-        {i<tasks.length-1&&<div style={{width:16,height:2,margin:"0 1px",marginBottom:18,background:dn?C.done:C.g300}}/>}
+        {i<tasks.length-1&&<div style={{width:16,height:2,margin:"0 1px",marginBottom:18,background:dn?C.done:C.pri+"33"}}/>}
       </div>;})}
   </div>;
 }
@@ -176,13 +177,18 @@ function AudioRec({onRecorded,existingUrl,userId}:{onRecorded:(url:string|null)=
   const del=()=>{setUrl(null);onRecorded(null);};
   const fmt=(s:number)=>`${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`;
   return <div style={{background:C.g50,borderRadius:14,padding:12,border:`1px solid ${C.bdr}`}}>
-    {uploading?<div style={{display:"flex",alignItems:"center",gap:8,padding:4}}>
-      <div style={{width:18,height:18,border:`3px solid ${C.g200}`,borderTopColor:C.pri,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-      <span style={{fontFamily:F,fontSize:13,color:C.t2}}>Wird hochgeladen...</span></div>
+    {uploading?<div style={{display:"flex",flexDirection:"column",gap:6,padding:4}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <div style={{width:18,height:18,border:`3px solid ${C.g200}`,borderTopColor:C.pri,borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+        <span style={{fontFamily:F,fontSize:13,color:C.t2,fontWeight:600}}>Aufnahme wird hochgeladen…</span></div>
+      <div style={{height:4,background:C.g200,borderRadius:2,overflow:"hidden"}}>
+        <div style={{height:"100%",width:"100%",background:`linear-gradient(90deg,${C.pri},${C.priL})`,borderRadius:2,
+          animation:"uploadPulse 1.2s ease-in-out infinite"}}/></div>
+      <style>{`@keyframes uploadPulse{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style></div>
     :url&&!rec?<div style={{display:"flex",alignItems:"center",gap:8}}>
       <audio src={url} controls style={{flex:1,height:36,borderRadius:8}}/>
-      <button onClick={del} tabIndex={0} style={{width:36,height:36,borderRadius:10,border:"none",background:C.err+"15",color:C.err,cursor:"pointer",fontSize:15,
-        display:"flex",alignItems:"center",justifyContent:"center"}}>🗑️</button></div>
+      <button onClick={del} tabIndex={0} style={{width:36,height:36,borderRadius:10,border:"none",background:C.err+"15",color:C.err,cursor:"pointer",
+        display:"flex",alignItems:"center",justifyContent:"center"}}><Trash2 size={16}/></button></div>
     :rec?<div style={{display:"flex",alignItems:"center",gap:10}}>
       <div style={{width:10,height:10,borderRadius:"50%",background:C.err,animation:"pulse 1s infinite"}}/>
       <span style={{fontFamily:F,fontWeight:600,color:C.t1}}>{fmt(dur)}</span><div style={{flex:1}}/>
@@ -200,7 +206,12 @@ function MediaUp({accept,label,icon,onFile,currentUrl,userId,fileType}:
   const ref=useRef<HTMLInputElement>(null);const [uploading,setUploading]=useState(false);
   const [preview,setPreview]=useState(currentUrl);const [prog,setProg]=useState<number|null>(null);
   useEffect(()=>setPreview(currentUrl),[currentUrl]);
+  const getVideoDuration=(f:File):Promise<number>=>new Promise(resolve=>{
+    const v=document.createElement("video");v.preload="metadata";
+    v.onloadedmetadata=()=>{URL.revokeObjectURL(v.src);resolve(v.duration);};
+    v.onerror=()=>resolve(0);v.src=URL.createObjectURL(f);});
   const handle=async(e:any)=>{const f=e.target.files?.[0];if(!f)return;
+    if(fileType==="video"){const dur=await getVideoDuration(f);if(dur>30){alert("Das Video ist zu lang. Bitte wähle ein Video mit maximal 30 Sekunden.");(e.target as HTMLInputElement).value="";return;}}
     setUploading(true);setProg(10);
     try{
       // Show local preview immediately
@@ -219,8 +230,12 @@ function MediaUp({accept,label,icon,onFile,currentUrl,userId,fileType}:
       :<video src={preview} controls playsInline style={{width:"100%",height:110,objectFit:"cover"}}/>}
       <button onClick={rm} tabIndex={0} style={{position:"absolute",top:6,right:6,width:28,height:28,borderRadius:8,border:"none",
         background:"rgba(0,0,0,0.55)",color:"#fff",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-      {uploading&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:4,background:C.g200}}>
-        <div style={{height:"100%",width:`${prog||0}%`,background:C.pri,transition:"width 0.3s"}}/></div>}</div>
+      {uploading&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+        background:"rgba(255,255,255,0.75)",backdropFilter:"blur(2px)"}}>
+        <span style={{fontSize:13,fontWeight:700,color:C.pri,marginBottom:6,fontFamily:F}}>{prog||0}%</span>
+        <div style={{width:"65%",height:6,background:C.g200,borderRadius:3,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${prog||0}%`,background:C.pri,transition:"width 0.4s ease",borderRadius:3}}/></div>
+        <span style={{fontSize:10,color:C.t2,marginTop:5,fontFamily:F}}>Wird hochgeladen…</span></div>}</div>
     :<button onClick={()=>ref.current?.click()} tabIndex={0} style={{display:"flex",alignItems:"center",gap:8,padding:"12px 16px",borderRadius:12,
       border:`1.5px dashed ${C.bdr}`,background:"white",cursor:"pointer",fontFamily:F,fontWeight:600,fontSize:13,color:C.t2,
       width:"100%",justifyContent:"center",marginBottom:8}}>{icon} {label}</button>}
@@ -274,8 +289,8 @@ function TaskEditor({task,onSave,onCancel,onDelete,userId}:
       boxShadow:"0 20px 60px rgba(0,0,0,0.2)",display:"flex",flexDirection:"column"}} role="dialog" aria-label="Aufgabe bearbeiten">
       <div style={{padding:"18px 22px 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <h2 style={{fontSize:18,fontWeight:700,color:C.t1,margin:0}}>✏️ Aufgabe bearbeiten</h2>
-        <button onClick={onCancel} tabIndex={0} aria-label="Schließen" style={{width:34,height:34,borderRadius:10,border:"none",background:C.g100,cursor:"pointer",fontSize:16,
-          display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button></div>
+        <button onClick={onCancel} tabIndex={0} aria-label="Schließen" style={{width:34,height:34,borderRadius:10,border:"none",background:C.g100,cursor:"pointer",
+          display:"flex",alignItems:"center",justifyContent:"center"}}><XIcon size={18}/></button></div>
       <div style={{display:"flex",gap:3,padding:"10px 22px 0",overflowX:"auto"}} role="tablist">
         {[{id:"basic",l:"📋 Basis"},{id:"media",l:"🖼️ Medien"},{id:"timer",l:"⏰ Timer"},{id:"tts",l:"🔊 Sprache"}].map(t=>
           <button key={t.id} onClick={()=>setTab(t.id)} tabIndex={0} role="tab" aria-selected={tab===t.id}
@@ -348,7 +363,7 @@ function TaskEditor({task,onSave,onCancel,onDelete,userId}:
         <button onClick={onCancel} tabIndex={0} style={{padding:"12px 18px",borderRadius:14,border:`1.5px solid ${C.bdr}`,
           background:"white",color:C.t1,fontFamily:F,fontWeight:600,fontSize:13,cursor:"pointer"}}>Abbrechen</button>
         {onDelete&&<button onClick={()=>onDelete(f.id)} tabIndex={0} style={{padding:"12px 14px",borderRadius:14,
-          border:`1.5px solid ${C.err}33`,background:C.err+"08",color:C.err,cursor:"pointer",fontFamily:F,fontWeight:600}}>🗑️</button>}
+          border:`1.5px solid ${C.err}33`,background:C.err+"08",color:C.err,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Trash2 size={18}/></button>}
       </div>
     </div>
   </div>;
@@ -471,7 +486,8 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
   const [midShown,setMidShown]=useState({h:false,e:false});const [midMsg,setMidMsg]=useState<string|null>(null);
   const [showPin,setShowPin]=useState(false);const [extCount,setExtCount]=useState(0);const [usedHelp,setUsedHelp]=useState(false);
   const [taskStartTime,setTaskStartTime]=useState(Date.now());
-  const tmr=useRef<any>(null);const videoRef=useRef<HTMLVideoElement>(null);
+  const [allTodayStickers,setAllTodayStickers]=useState<string[]>([]);
+  const tmr=useRef<any>(null);const videoRef=useRef<HTMLVideoElement>(null);const notifRef=useRef<any>(null);
   const ct=tasks[ci];const nt=ci+1<tasks.length?tasks[ci+1]:null;
   const prog=tasks.length>0?done.size/tasks.length:0;
 
@@ -502,6 +518,23 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
   useEffect(()=>{let wl:any=null;
     if("wakeLock" in navigator)(navigator as any).wakeLock.request("screen").then((l:any)=>{wl=l;}).catch(()=>{});
     return()=>{wl?.release();};},[]);
+
+  // Notification API – Permission anfragen
+  useEffect(()=>{if('Notification' in window&&Notification.permission==='default')
+    Notification.requestPermission().catch(()=>{});},[]);
+
+  // Benachrichtigung für aktuellen Task einplanen (wenn Tab im Hintergrund)
+  useEffect(()=>{if(notifRef.current)clearTimeout(notifRef.current);
+    if(!ct||!('Notification' in window)||Notification.permission!=='granted'||rem<=0)return;
+    notifRef.current=setTimeout(()=>{if(document.hidden)try{
+      new Notification(`⏰ "${ct.name}" – Zeit ist um!`,{
+        body:'Hast du es geschafft? Tippe auf DayGuide, um fortzufahren.',
+        icon:'/icons/icon-192x192.png'});}catch{}},rem*1000);
+    return()=>{if(notifRef.current)clearTimeout(notifRef.current);};},[ci,tot]);
+
+  // Alle heutigen Sticker laden wenn Tag abgeschlossen
+  useEffect(()=>{if(!allDone)return;setConfetti(true);
+    stickersApi.today(profileId).then(d=>setAllTodayStickers(d.map((s:any)=>s.sticker))).catch(()=>{});},[allDone]);
 
   const goNext=useCallback(()=>{setTrans(null);
     if(ci+1<tasks.length){const nx=ci+1;setCi(nx);const d=tasks[nx].duration*60;setRem(d);setTot(d);}
@@ -541,7 +574,7 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
           <div style={{height:"100%",width:`${prog*100}%`,background:`linear-gradient(90deg,${C.ok},${C.okL})`,borderRadius:4,transition:"width 0.5s"}}/></div>
         <span style={{fontSize:12,fontWeight:700,color:C.t2}}>{done.size}/{tasks.length}</span></div>
       <button onClick={()=>setShowPin(true)} tabIndex={0} style={{padding:"5px 12px",background:C.g200,border:"none",borderRadius:8,
-        fontSize:11,color:C.t2,cursor:"pointer",fontFamily:F,fontWeight:600}}>🔒 Eltern</button></div>
+        fontSize:11,color:C.t2,cursor:"pointer",fontFamily:F,fontWeight:600,display:"flex",alignItems:"center",gap:4}}><Lock size={12}/> Eltern</button></div>
 
     <div style={{padding:"5px 12px",display:"flex",justifyContent:"center"}}><Timeline tasks={tasks} ci={ci} doneSet={done}/></div>
 
@@ -565,10 +598,10 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
       fontFamily:F,whiteSpace:"nowrap"}} role="alert">{midMsg}</div>}
 
     <div style={{display:"flex",justifyContent:"center",gap:12,padding:"10px 16px 16px",flexWrap:"wrap"}}>
-      <ABtn label="Fertig!" icon="✅" color={C.ok} onClick={handleDone} tabIndex={1}/>
-      <ABtn label="Noch Zeit" icon="⏳" color={C.warn} onClick={handleExtend} tabIndex={2}/>
-      <ABtn label="Hilfe" icon="🆘" color={C.pri} onClick={handleHelp} tabIndex={3}/>
-      <ABtn label={paused?"Weiter":"Pause"} icon={paused?"▶️":"⏸️"} color={C.g400} onClick={()=>setPaused(!paused)} sz="sm" tabIndex={4}/></div>
+      <ABtn label="Fertig!" icon={<CheckCircle size={26}/>} color={C.ok} onClick={handleDone} tabIndex={1}/>
+      <ABtn label="Noch Zeit" icon={<Clock size={26}/>} color={C.yel} onClick={handleExtend} tabIndex={2}/>
+      <ABtn label="Hilfe" icon={<HelpCircle size={26}/>} color={C.warn} onClick={handleHelp} tabIndex={3}/>
+      <ABtn label={paused?"Weiter":"Pause"} icon={paused?<Play size={20}/>:<Pause size={20}/>} color={C.g400} onClick={()=>setPaused(!paused)} sz="sm" tabIndex={4}/></div>
 
     <Confetti show={confetti}/>
 
@@ -599,16 +632,27 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
 
     {/* All Done */}
     {allDone&&<div style={{position:"fixed",inset:0,background:"linear-gradient(135deg,#667eea,#764ba2,#f093fb)",
-      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",zIndex:200,fontFamily:F,color:"white"}}>
-      <div style={{fontSize:76,marginBottom:14,animation:"bounceIn 0.6s ease-out"}}>🌟</div>
-      <h1 style={{fontSize:38,fontWeight:700,marginBottom:6}}>Toll gemacht, {profile.name}!</h1>
-      <p style={{fontSize:22,opacity:0.9,marginBottom:28}}>Alle {tasks.length} Aufgaben geschafft!</p>
-      <div style={{background:"rgba(255,255,255,0.15)",borderRadius:22,padding:"20px 28px",backdropFilter:"blur(10px)",marginBottom:28}}>
-        <p style={{fontSize:14,marginBottom:10,opacity:0.8}}>Deine Sticker:</p>
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",zIndex:200,fontFamily:F,color:"white",
+      overflowY:"auto",padding:"20px 16px"}}>
+      <div style={{fontSize:80,marginBottom:12,animation:"bounceIn 0.6s ease-out"}}>🌟</div>
+      <h1 style={{fontSize:38,fontWeight:700,marginBottom:6,textAlign:"center"}}>Toll gemacht, {profile.name}!</h1>
+      <p style={{fontSize:22,opacity:0.9,marginBottom:4,textAlign:"center"}}>Alle {tasks.length} Aufgaben geschafft!</p>
+      <p style={{fontSize:16,opacity:0.75,marginBottom:28,textAlign:"center"}}>Du hast heute alles geschafft! 🎉</p>
+      {(allTodayStickers.length>0||stickerList.length>0)&&
+        <div style={{background:"rgba(255,255,255,0.15)",borderRadius:22,padding:"20px 28px",backdropFilter:"blur(10px)",
+          marginBottom:28,maxWidth:500,width:"100%",textAlign:"center"}}>
+          <p style={{fontSize:14,marginBottom:12,opacity:0.85}}>
+            🏅 Heute gesammelte Sticker ({allTodayStickers.length||stickerList.length}):</p>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"center"}}>
+            {(allTodayStickers.length>0?allTodayStickers:stickerList).map((s,i)=>
+              <span key={i} style={{fontSize:34,animation:`bounceIn 0.4s ease-out ${i*0.07}s both`}}>{s}</span>)}</div></div>}
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,marginBottom:8}}>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"center"}}>
-          {stickerList.map((s,i)=><span key={i} style={{fontSize:32,animation:`bounceIn 0.4s ease-out ${i*0.08}s both`}}>{s}</span>)}</div></div>
-      <button onClick={onExit} tabIndex={0} style={{padding:"14px 36px",background:"rgba(255,255,255,0.2)",border:"2px solid rgba(255,255,255,0.4)",
-        borderRadius:14,color:"white",fontSize:16,fontWeight:600,cursor:"pointer",fontFamily:F}}>Zurück</button></div>}
+          {["⭐","🌈","🎊","💫","🦋"].map((e,i)=><span key={i} style={{fontSize:28,animation:`bounceIn 0.5s ease-out ${0.8+i*0.1}s both`,opacity:0}}>{e}</span>)}</div>
+      </div>
+      <button onClick={onExit} tabIndex={0} style={{padding:"14px 36px",background:"rgba(255,255,255,0.2)",
+        border:"2px solid rgba(255,255,255,0.4)",borderRadius:14,color:"white",fontSize:16,fontWeight:600,
+        cursor:"pointer",fontFamily:F,marginTop:8}}>Zurück zum Eltern-Modus</button></div>}
 
     {showPin&&<PinDialog correctPin={settings.pin_code||"1234"} onOk={()=>{setShowPin(false);window.speechSynthesis?.cancel();onExit();}} onCancel={()=>setShowPin(false)}/>}
     <style>{`@keyframes fadeIn{0%{opacity:0;transform:scale(.93)}100%{opacity:1;transform:scale(1)}}
@@ -630,6 +674,13 @@ function Dashboard({userId,settings,onSettings,onStartChild,onLogout}:
   const [loading,setLoading]=useState(true);
   const [newP,setNewP]=useState(false);const [newName,setNewName]=useState("");
   const [dragIdx,setDragIdx]=useState<number|null>(null);
+  const [allScheds,setAllScheds]=useState<Schedule[]>([]);
+  const [showSaveTmpl,setShowSaveTmpl]=useState(false);
+  const [showLoadTmpl,setShowLoadTmpl]=useState(false);
+  const [tmplName,setTmplName]=useState("");
+  const [showCopyPlan,setShowCopyPlan]=useState(false);
+  const [copyDays,setCopyDays]=useState<number[]>([]);
+  const [tmplBusy,setTmplBusy]=useState(false);
   const listRef=useRef<HTMLDivElement>(null);const touchStartRef=useRef<any>(null);
 
   useEffect(()=>{loadProfiles();},[]);
@@ -639,10 +690,13 @@ function Dashboard({userId,settings,onSettings,onStartChild,onLogout}:
   }catch(e){console.error("Load profiles failed:",e);setLoading(false);}};
 
   const loadScheduleAndTasks=async(profileId:string)=>{try{
-    let scheds=await schedulesApi.list(profileId);let sched=scheds.find(s=>s.is_active);
+    let scheds=await schedulesApi.list(profileId);setAllScheds(scheds);
+    let sched=scheds.find(s=>s.is_active&&!s.is_template);
     if(!sched)sched=await schedulesApi.create(profileId,"Mein Tagesplan",[1,2,3,4,5]);
     setSchedule(sched);const dbTasks=await tasksApi.list(sched.id);setTaskList(dbTasks.map(dbToUI));
   }catch(e){console.error("Load tasks failed:",e);setTaskList([]);}};
+
+  const refreshScheds=async()=>{if(!selProfile)return;const s=await schedulesApi.list(selProfile.id);setAllScheds(s);};
 
   const selectProfile=async(p:Profile)=>{setSelProfile(p);setLoading(true);await loadScheduleAndTasks(p.id);setLoading(false);};
 
@@ -668,6 +722,36 @@ function Dashboard({userId,settings,onSettings,onStartChild,onLogout}:
   const duplicateTask=async(t:UITask)=>{if(!schedule)return;
     try{const nt=await tasksApi.create(schedule.id,{...uiToDB(t),name:t.name+" (Kopie)",sort_order:taskList.length});
       setTaskList(p=>[...p,dbToUI(nt)]);}catch(e){alert("Kopieren fehlgeschlagen: "+e);}};
+
+  const saveAsTemplate=async()=>{if(!schedule||!tmplName.trim())return;setTmplBusy(true);
+    try{const tmpl=await schedulesApi.create(selProfile!.id,tmplName.trim(),[]);
+      await schedulesApi.update(tmpl.id,{is_template:true,template_name:tmplName.trim()});
+      for(const t of taskList)await tasksApi.create(tmpl.id,{...uiToDB(t),sort_order:t.sortOrder});
+      await refreshScheds();setShowSaveTmpl(false);setTmplName("");alert("✅ Vorlage gespeichert!");}
+    catch(e){alert("Fehler: "+e);}setTmplBusy(false);};
+
+  const loadFromTemplate=async(tmpl:Schedule)=>{if(!schedule)return;
+    if(!confirm(`Alle aktuellen Aufgaben durch Vorlage „${tmpl.template_name||tmpl.name}" ersetzen?`))return;
+    setTmplBusy(true);
+    try{for(const t of taskList)await tasksApi.delete(t.id);
+      const ts=await tasksApi.list(tmpl.id);const newT:UITask[]=[];
+      for(const t of ts){const nt=await tasksApi.create(schedule.id,{name:t.name,start_time:t.start_time,
+        duration_minutes:t.duration_minutes,sort_order:t.sort_order,color:t.color,icon_emoji:t.icon_emoji,
+        reminder_type:t.reminder_type,enable_mid_reminders:t.enable_mid_reminders,tts_text:t.tts_text,
+        mid_reminder_text:t.mid_reminder_text,extension_minutes:t.extension_minutes,
+        image_url:t.image_url,video_url:t.video_url,audio_url:t.audio_url});newT.push(dbToUI(nt));}
+      setTaskList(newT);setShowLoadTmpl(false);}
+    catch(e){alert("Fehler: "+e);}setTmplBusy(false);};
+
+  const deleteTemplate=async(tmpl:Schedule)=>{if(!confirm(`Vorlage „${tmpl.template_name||tmpl.name}" löschen?`))return;
+    try{await schedulesApi.delete(tmpl.id);await refreshScheds();}catch(e){alert("Fehler: "+e);}};
+
+  const copyPlanToDays=async()=>{if(!schedule||copyDays.length===0)return;setTmplBusy(true);
+    try{const ns=await schedulesApi.create(selProfile!.id,"Kopie – "+copyDays.map(d=>WD_LABELS[d]).join("/"),copyDays);
+      for(const t of taskList)await tasksApi.create(ns.id,{...uiToDB(t),sort_order:t.sortOrder});
+      setShowCopyPlan(false);setCopyDays([]);
+      alert(`✅ Plan für ${copyDays.map(d=>WD_LABELS[d]).join(", ")} wurde erstellt!`);}
+    catch(e){alert("Fehler: "+e);}setTmplBusy(false);};
 
   // Weekday filter for child mode
   const startChildMode=()=>{if(!selProfile||taskList.length===0){alert("Bitte zuerst Aufgaben hinzufügen.");return;}
@@ -776,8 +860,20 @@ function Dashboard({userId,settings,onSettings,onStartChild,onLogout}:
             {!schedActiveToday&&schedule&&<p style={{fontSize:10,color:C.warn,fontWeight:600,marginTop:4}}>
               ⚠️ Dieser Plan ist nicht für {todayLabel} aktiv</p>}
           </div>
-          <button onClick={addTask} tabIndex={0} style={{padding:"8px 14px",borderRadius:9,border:`1.5px dashed ${C.pri}44`,
-            background:C.pri+"08",cursor:"pointer",fontFamily:F,fontWeight:600,fontSize:12,color:C.pri}}>+ Aufgabe</button></div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            <button onClick={()=>setShowSaveTmpl(true)} tabIndex={0} title="Als Vorlage speichern"
+              style={{padding:"8px 12px",borderRadius:9,border:`1.5px solid ${C.bdr}`,background:"white",cursor:"pointer",
+                fontFamily:F,fontWeight:600,fontSize:11,color:C.t2}}>💾 Vorlage</button>
+            {allScheds.filter(s=>s.is_template).length>0&&
+              <button onClick={()=>setShowLoadTmpl(true)} tabIndex={0}
+                style={{padding:"8px 12px",borderRadius:9,border:`1.5px solid ${C.bdr}`,background:"white",cursor:"pointer",
+                  fontFamily:F,fontWeight:600,fontSize:11,color:C.t2}}>📂 Laden</button>}
+            <button onClick={()=>setShowCopyPlan(true)} tabIndex={0} title="Plan für andere Tage kopieren"
+              style={{padding:"8px 12px",borderRadius:9,border:`1.5px solid ${C.bdr}`,background:"white",cursor:"pointer",
+                fontFamily:F,fontWeight:600,fontSize:11,color:C.t2}}>📋 Kopieren</button>
+            <button onClick={addTask} tabIndex={0} style={{padding:"8px 14px",borderRadius:9,border:`1.5px dashed ${C.pri}44`,
+              background:C.pri+"08",cursor:"pointer",fontFamily:F,fontWeight:600,fontSize:12,color:C.pri}}>+ Aufgabe</button>
+          </div></div>
 
         <div ref={listRef} style={{display:"flex",flexDirection:"column",gap:5}}>
           {taskList.map((t,idx)=><div key={t.id} draggable
@@ -821,19 +917,105 @@ function Dashboard({userId,settings,onSettings,onStartChild,onLogout}:
       {tab==="settings"&&<SettingsPanel userId={userId} settings={settings} onSave={onSettings}/>}
     </div>
     </>}
+    {/* Modal: Vorlage speichern */}
+    {showSaveTmpl&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",backdropFilter:"blur(3px)",
+      display:"flex",alignItems:"center",justifyContent:"center",zIndex:600}}
+      onClick={e=>{if(e.target===e.currentTarget)setShowSaveTmpl(false);}}>
+      <div style={{background:"white",borderRadius:20,padding:28,width:340,boxShadow:"0 16px 48px rgba(0,0,0,0.15)"}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:C.t1,margin:"0 0 8px"}}>💾 Als Vorlage speichern</h3>
+        <p style={{fontSize:12,color:C.t2,marginBottom:14}}>Speichert alle {taskList.length} Aufgaben als wiederverwendbare Vorlage.</p>
+        <label style={lbl}>Name der Vorlage</label>
+        <input value={tmplName} onChange={e=>setTmplName(e.target.value)} style={inp} placeholder="z. B. Schulmorgen"
+          autoFocus onKeyDown={e=>{if(e.key==="Enter")saveAsTemplate();}}/>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={saveAsTemplate} disabled={tmplBusy||!tmplName.trim()} tabIndex={0}
+            style={{flex:1,padding:11,borderRadius:12,border:"none",background:C.pri,color:"#fff",fontFamily:F,fontWeight:700,
+              cursor:"pointer",opacity:tmplBusy||!tmplName.trim()?0.5:1}}>
+            {tmplBusy?"Wird gespeichert…":"Speichern"}</button>
+          <button onClick={()=>setShowSaveTmpl(false)} tabIndex={0}
+            style={{padding:"11px 18px",borderRadius:12,border:`1.5px solid ${C.bdr}`,background:"white",
+              color:C.t1,fontFamily:F,fontWeight:600,cursor:"pointer"}}>Abbrechen</button></div></div></div>}
+
+    {/* Modal: Vorlage laden */}
+    {showLoadTmpl&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",backdropFilter:"blur(3px)",
+      display:"flex",alignItems:"center",justifyContent:"center",zIndex:600}}
+      onClick={e=>{if(e.target===e.currentTarget)setShowLoadTmpl(false);}}>
+      <div style={{background:"white",borderRadius:20,padding:28,width:400,boxShadow:"0 16px 48px rgba(0,0,0,0.15)",
+        maxHeight:"80vh",overflowY:"auto"}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:C.t1,margin:"0 0 14px"}}>📂 Vorlage laden</h3>
+        <p style={{fontSize:12,color:C.t2,marginBottom:14}}>⚠️ Alle aktuellen Aufgaben werden ersetzt.</p>
+        {allScheds.filter(s=>s.is_template).map(tmpl=><div key={tmpl.id}
+          style={{display:"flex",alignItems:"center",gap:8,padding:"12px 14px",background:C.g50,
+            borderRadius:12,marginBottom:8,border:`1px solid ${C.bdr}`}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.t1}}>{tmpl.template_name||tmpl.name}</div>
+            <div style={{fontSize:11,color:C.t2}}>{new Date(tmpl.created_at).toLocaleDateString("de-DE")}</div></div>
+          <button onClick={()=>loadFromTemplate(tmpl)} disabled={tmplBusy} tabIndex={0}
+            style={{padding:"8px 14px",borderRadius:9,border:"none",background:C.ok,color:"white",
+              fontFamily:F,fontWeight:600,fontSize:12,cursor:"pointer",opacity:tmplBusy?0.5:1}}>Laden</button>
+          <button onClick={()=>deleteTemplate(tmpl)} tabIndex={0} aria-label="Vorlage löschen"
+            style={{width:32,height:32,borderRadius:8,border:"none",background:C.err+"15",color:C.err,
+              cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Trash2 size={14}/></button>
+        </div>)}
+        <button onClick={()=>setShowLoadTmpl(false)} tabIndex={0}
+          style={{width:"100%",padding:11,borderRadius:12,border:`1.5px solid ${C.bdr}`,background:"white",
+            color:C.t1,fontFamily:F,fontWeight:600,cursor:"pointer",marginTop:4}}>Schließen</button></div></div>}
+
+    {/* Modal: Plan für andere Tage kopieren */}
+    {showCopyPlan&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",backdropFilter:"blur(3px)",
+      display:"flex",alignItems:"center",justifyContent:"center",zIndex:600}}
+      onClick={e=>{if(e.target===e.currentTarget){setShowCopyPlan(false);setCopyDays([]);}}}>
+      <div style={{background:"white",borderRadius:20,padding:28,width:340,boxShadow:"0 16px 48px rgba(0,0,0,0.15)"}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:C.t1,margin:"0 0 8px"}}>📋 Plan für andere Tage kopieren</h3>
+        <p style={{fontSize:12,color:C.t2,marginBottom:14}}>
+          Erstellt einen neuen Plan mit denselben {taskList.length} Aufgaben für andere Wochentage.</p>
+        <label style={lbl}>Für welche Tage?</label>
+        <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
+          {WD_DISPLAY.map((d,i)=>{const jsDow=WD_MAP[i];const sel=copyDays.includes(jsDow);
+            const cur=schedule?.days_of_week?.includes(jsDow);
+            return <button key={d} onClick={()=>!cur&&setCopyDays(p=>sel?p.filter(x=>x!==jsDow):[...p,jsDow])}
+              tabIndex={0} title={cur?"Aktueller Plan":""}
+              style={{width:38,height:38,borderRadius:"50%",border:cur?`2px solid ${C.bdr}`:"none",
+                cursor:cur?"default":"pointer",fontSize:11,fontWeight:700,fontFamily:F,
+                background:sel?C.pri:cur?C.g100:C.g200,color:sel?"white":cur?C.t3:C.t2,
+                opacity:cur?0.4:1}}>{d}</button>;})}
+        </div>
+        {copyDays.length>0&&<p style={{fontSize:12,color:C.pri,fontWeight:600,marginBottom:12}}>
+          Gewählt: {copyDays.map(d=>WD_LABELS[d]).join(", ")}</p>}
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={copyPlanToDays} disabled={tmplBusy||copyDays.length===0} tabIndex={0}
+            style={{flex:1,padding:11,borderRadius:12,border:"none",background:C.pri,color:"#fff",fontFamily:F,fontWeight:700,
+              cursor:"pointer",opacity:tmplBusy||copyDays.length===0?0.5:1}}>
+            {tmplBusy?"Wird erstellt…":"Plan erstellen"}</button>
+          <button onClick={()=>{setShowCopyPlan(false);setCopyDays([]);}} tabIndex={0}
+            style={{padding:"11px 18px",borderRadius:12,border:`1.5px solid ${C.bdr}`,background:"white",
+              color:C.t1,fontFamily:F,fontWeight:600,cursor:"pointer"}}>Abbrechen</button></div></div></div>}
+
     {editing&&<TaskEditor task={editing} onSave={saveTask} onCancel={()=>setEditing(null)} onDelete={deleteTask} userId={userId}/>}
   </div>;
 }
 
 // ═══ LOGIN ═══════════════════════════════════════════════════
-function Login({onAuth}:{onAuth:(userId:string)=>void}){
-  const [email,setEmail]=useState("");const [pass,setPass]=useState("");
-  const [mode,setMode]=useState("login");const [loading,setLoading]=useState(false);const [error,setError]=useState("");
-  const handleSubmit=async()=>{if(!email||!pass){setError("Bitte E-Mail und Passwort eingeben.");return;}
-    setLoading(true);setError("");
+function Login({onAuth,onVerifyEmail}:{onAuth:(userId:string)=>void;onVerifyEmail:()=>void}){
+  const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [pass2,setPass2]=useState("");
+  const [showPass,setShowPass]=useState(false);const [showPass2,setShowPass2]=useState(false);
+  const [mode,setMode]=useState<"login"|"register"|"forgot">("login");
+  const [loading,setLoading]=useState(false);const [error,setError]=useState("");const [info,setInfo]=useState("");
+  const switchMode=(m:"login"|"register"|"forgot")=>{setMode(m);setError("");setInfo("");setPass2("");setShowPass(false);setShowPass2(false);};
+  const handleSubmit=async()=>{
+    if(mode==="forgot"){
+      if(!email){setError("Bitte E-Mail eingeben.");return;}
+      setLoading(true);setError("");setInfo("");
+      try{await auth.resetPassword(email);setInfo("E-Mail gesendet! Prüfe deinen Posteingang.");}
+      catch(e:any){setError(e.message||"Fehler beim Senden.");}
+      setLoading(false);return;
+    }
+    if(!email||!pass){setError("Bitte E-Mail und Passwort eingeben.");return;}
+    if(mode==="register"&&pass!==pass2){setError("Passwörter stimmen nicht überein.");return;}
+    setLoading(true);setError("");setInfo("");
     try{if(mode==="login"){const d=await auth.signIn(email,pass);onAuth(d.user!.id);}
-      else{const d=await auth.signUp(email,pass);if(d.user)onAuth(d.user.id);
-        else setError("Registrierung erfolgreich! Bitte bestätige deine E-Mail.");}}
+      else{const d=await auth.signUp(email,pass);
+        if(d.session){onAuth(d.user!.id);}else{onVerifyEmail();}}}
     catch(e:any){setError(e.message||"Fehler bei der Anmeldung");}setLoading(false);};
   return <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#E3F2FD 0%,#F3E5F5 40%,#FFF3E0 100%)",
     display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,padding:20}}>
@@ -841,28 +1023,106 @@ function Login({onAuth}:{onAuth:(userId:string)=>void}){
       <div style={{fontSize:52,marginBottom:10}}>📋</div>
       <h1 style={{fontSize:28,fontWeight:700,color:C.t1,marginBottom:2}}>DayGuide</h1>
       <p style={{fontSize:14,color:C.t2,marginBottom:24,lineHeight:1.4}}>Visuelle Tagesstruktur<br/>für Kinder &amp; Jugendliche</p>
-      <div style={{display:"flex",gap:3,marginBottom:18,background:C.g50,borderRadius:9,padding:3}} role="tablist">
-        {[{id:"login",l:"Anmelden"},{id:"register",l:"Registrieren"}].map(m=>
-          <button key={m.id} onClick={()=>{setMode(m.id);setError("");}} tabIndex={0} role="tab" aria-selected={mode===m.id}
+      {mode!=="forgot"&&<div style={{display:"flex",gap:3,marginBottom:18,background:C.g50,borderRadius:9,padding:3}} role="tablist">
+        {([{id:"login" as const,l:"Anmelden"},{id:"register" as const,l:"Registrieren"}]).map(m=>
+          <button key={m.id} onClick={()=>switchMode(m.id)} tabIndex={0} role="tab" aria-selected={mode===m.id}
             style={{flex:1,padding:7,borderRadius:7,border:"none",background:mode===m.id?"white":"transparent",
               color:mode===m.id?C.t1:C.t2,fontFamily:F,fontWeight:600,fontSize:12,cursor:"pointer",
-              boxShadow:mode===m.id?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>{m.l}</button>)}</div>
+              boxShadow:mode===m.id?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>{m.l}</button>)}</div>}
+      {mode==="forgot"&&<p style={{fontSize:14,color:C.t2,marginBottom:18,lineHeight:1.5}}>Gib deine E-Mail ein – wir schicken dir einen Link zum Zurücksetzen.</p>}
       <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="E-Mail" style={{...inp,textAlign:"center"}}
         onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}} aria-label="E-Mail"/>
-      <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Passwort (min. 6 Zeichen)"
-        style={{...inp,textAlign:"center"}} onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}} aria-label="Passwort"/>
+      {mode!=="forgot"&&<div style={{position:"relative",marginBottom:14}}>
+        <input type={showPass?"text":"password"} value={pass} onChange={e=>setPass(e.target.value)}
+          placeholder="Passwort (min. 6 Zeichen)"
+          style={{...inp,marginBottom:0,textAlign:"center",paddingRight:44}}
+          onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}}
+          onCopy={e=>e.preventDefault()} onCut={e=>e.preventDefault()}
+          aria-label="Passwort"/>
+        <button type="button" onClick={()=>setShowPass(p=>!p)} tabIndex={-1} aria-label={showPass?"Passwort verbergen":"Passwort anzeigen"}
+          style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",
+            border:"none",cursor:"pointer",color:C.t3,padding:4,display:"flex",alignItems:"center"}}>
+          {showPass?<EyeOff size={18}/>:<Eye size={18}/>}</button></div>}
+      {mode==="register"&&<div style={{position:"relative",marginBottom:14}}>
+        <input type={showPass2?"text":"password"} value={pass2} onChange={e=>setPass2(e.target.value)}
+          placeholder="Passwort bestätigen"
+          style={{...inp,marginBottom:0,textAlign:"center",paddingRight:72,
+            borderColor:pass2?(pass===pass2?C.ok:C.err):undefined,
+            borderWidth:pass2?"2px":"1.5px"}}
+          onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}}
+          onCopy={e=>e.preventDefault()} onCut={e=>e.preventDefault()}
+          aria-label="Passwort bestätigen"/>
+        {pass2&&<span style={{position:"absolute",right:44,top:"50%",transform:"translateY(-50%)",fontSize:15,lineHeight:1}}>
+          {pass===pass2?"✅":"❌"}</span>}
+        <button type="button" onClick={()=>setShowPass2(p=>!p)} tabIndex={-1} aria-label={showPass2?"Passwort verbergen":"Passwort anzeigen"}
+          style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",
+            border:"none",cursor:"pointer",color:C.t3,padding:4,display:"flex",alignItems:"center"}}>
+          {showPass2?<EyeOff size={18}/>:<Eye size={18}/>}</button></div>}
+      {info&&<p style={{color:C.ok,fontSize:13,fontWeight:600,marginBottom:12}}>{info}</p>}
       {error&&<p style={{color:C.err,fontSize:13,fontWeight:600,marginBottom:12}} role="alert">{error}</p>}
       <button onClick={handleSubmit} disabled={loading} tabIndex={0} style={{width:"100%",padding:13,borderRadius:14,border:"none",fontSize:15,fontWeight:700,
         cursor:loading?"wait":"pointer",fontFamily:F,background:loading?"#aaa":`linear-gradient(135deg,${C.pri},${C.priL})`,color:"white",
-        boxShadow:`0 4px 14px ${C.pri}33`}}>{loading?"Bitte warten...":mode==="login"?"Anmelden":"Registrieren"}</button>
+        boxShadow:`0 4px 14px ${C.pri}33`}}>{loading?"Bitte warten...":mode==="login"?"Anmelden":mode==="register"?"Registrieren":"Link senden"}</button>
+      {mode==="login"&&<button onClick={()=>switchMode("forgot")} tabIndex={0}
+        style={{background:"none",border:"none",color:C.t3,fontSize:12,cursor:"pointer",marginTop:12,fontFamily:F,textDecoration:"underline"}}>
+        Passwort vergessen?</button>}
+      {mode==="forgot"&&<button onClick={()=>switchMode("login")} tabIndex={0}
+        style={{background:"none",border:"none",color:C.t3,fontSize:12,cursor:"pointer",marginTop:12,fontFamily:F,textDecoration:"underline"}}>
+        Zurück zur Anmeldung</button>}
       <div style={{marginTop:20,padding:12,background:C.g50,borderRadius:10,fontSize:11,color:C.t2,lineHeight:1.5,textAlign:"left"}}>
-        <strong>ℹ️ DayGuide</strong> basiert auf dem TEACCH-Ansatz für visuell strukturierte Tagespläne. 
+        <strong>ℹ️ DayGuide</strong> basiert auf dem TEACCH-Ansatz für visuell strukturierte Tagespläne.
         Registriere dich mit E-Mail und Passwort (min. 6 Zeichen).</div></div></div>;
+}
+
+// ═══ VERIFY EMAIL ════════════════════════════════════════════
+function VerifyEmail(){
+  return <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#E3F2FD 0%,#F3E5F5 40%,#FFF3E0 100%)",
+    display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,padding:20}}>
+    <div style={{background:"white",borderRadius:28,padding:"40px 36px",boxShadow:"0 16px 48px rgba(0,0,0,0.08)",
+      maxWidth:400,width:"100%",textAlign:"center"}}>
+      <div style={{fontSize:56,marginBottom:16}}>📧</div>
+      <h2 style={{fontSize:22,fontWeight:700,color:C.t1,marginBottom:12}}>E-Mail bestätigen</h2>
+      <p style={{fontSize:14,color:C.t2,lineHeight:1.6,marginBottom:16}}>
+        Wir haben dir eine Bestätigungs-E-Mail geschickt.<br/>
+        Bitte klicke auf den Link in der E-Mail, um fortzufahren.</p>
+      <p style={{fontSize:12,color:C.t3,lineHeight:1.5}}>
+        Nach der Bestätigung wirst du automatisch eingeloggt.</p>
+    </div>
+  </div>;
+}
+
+// ═══ PASSWORD RESET ══════════════════════════════════════════
+function PasswordReset({onDone}:{onDone:(userId:string)=>void}){
+  const [pass,setPass]=useState("");const [pass2,setPass2]=useState("");
+  const [loading,setLoading]=useState(false);const [error,setError]=useState("");
+  const handleSubmit=async()=>{
+    if(pass.length<6){setError("Passwort muss mindestens 6 Zeichen haben.");return;}
+    if(pass!==pass2){setError("Passwörter stimmen nicht überein.");return;}
+    setLoading(true);setError("");
+    try{await auth.updatePassword(pass);const s=await auth.getSession();if(s?.user)onDone(s.user.id);}
+    catch(e:any){setError(e.message||"Fehler beim Speichern.");}setLoading(false);};
+  return <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#E3F2FD 0%,#F3E5F5 40%,#FFF3E0 100%)",
+    display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,padding:20}}>
+    <div style={{background:"white",borderRadius:28,padding:"40px 36px",boxShadow:"0 16px 48px rgba(0,0,0,0.08)",
+      maxWidth:400,width:"100%",textAlign:"center"}}>
+      <div style={{fontSize:56,marginBottom:16}}>🔐</div>
+      <h2 style={{fontSize:22,fontWeight:700,color:C.t1,marginBottom:8}}>Neues Passwort</h2>
+      <p style={{fontSize:14,color:C.t2,marginBottom:20}}>Wähle ein neues Passwort für deinen Account.</p>
+      <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Neues Passwort (min. 6 Zeichen)"
+        style={{...inp,textAlign:"center"}} onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}} aria-label="Neues Passwort"/>
+      <input type="password" value={pass2} onChange={e=>setPass2(e.target.value)} placeholder="Passwort wiederholen"
+        style={{...inp,textAlign:"center"}} onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}} aria-label="Passwort wiederholen"/>
+      {error&&<p style={{color:C.err,fontSize:13,fontWeight:600,marginBottom:12}} role="alert">{error}</p>}
+      <button onClick={handleSubmit} disabled={loading} tabIndex={0} style={{width:"100%",padding:13,borderRadius:14,border:"none",fontSize:15,fontWeight:700,
+        cursor:loading?"wait":"pointer",fontFamily:F,background:loading?"#aaa":`linear-gradient(135deg,${C.pri},${C.priL})`,color:"white",
+        boxShadow:`0 4px 14px ${C.pri}33`}}>{loading?"Bitte warten...":"Passwort speichern"}</button>
+    </div>
+  </div>;
 }
 
 // ═══ MAIN APP ════════════════════════════════════════════════
 export default function DayGuide(){
-  const [screen,setScreen]=useState<"loading"|"login"|"dash"|"child">("loading");
+  const [screen,setScreen]=useState<"loading"|"login"|"verify-email"|"reset-password"|"dash"|"child">("loading");
   const [userId,setUserId]=useState<string|null>(null);
   const [childProfile,setChildProfile]=useState<any>(null);
   const [childTasks,setChildTasks]=useState<UITask[]>([]);
@@ -873,9 +1133,11 @@ export default function DayGuide(){
     auth.getSession().then(async session=>{
       if(session?.user){setUserId(session.user.id);await loadSettings();setScreen("dash");}
       else setScreen("login");}).catch(()=>setScreen("login"));
-    const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
-      if(session?.user){setUserId(session.user.id);setScreen(prev=>prev==="login"?"dash":prev);}
-      else{setUserId(null);setScreen("login");}});
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+      if(event==="PASSWORD_RECOVERY"){setScreen("reset-password");return;}
+      if(session?.user){setUserId(session.user.id);loadSettings();
+        setScreen(prev=>(prev==="login"||prev==="verify-email")?"dash":prev);}
+      else{setUserId(null);setScreen(prev=>prev==="verify-email"?prev:"login");}});
     return()=>subscription.unsubscribe();
   },[]);
 
@@ -883,6 +1145,7 @@ export default function DayGuide(){
     if(s)setAppSettings({...DEFAULT_SETTINGS,...s});}catch{}};
 
   const handleAuth=async(uid:string)=>{setUserId(uid);await loadSettings();setScreen("dash");};
+  const handleVerifyEmail=()=>setScreen("verify-email");
   const handleLogout=async()=>{await auth.signOut();setUserId(null);setScreen("login");};
   const startChild=(p:any,t:UITask[],pid:string)=>{setChildProfile(p);setChildTasks(t);setChildProfileId(pid);setScreen("child");
     document.documentElement.requestFullscreen?.().catch(()=>{});};
@@ -897,7 +1160,9 @@ export default function DayGuide(){
       input,select,textarea,button{font-family:'Quicksand',sans-serif}
       button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:2px solid #4A90D9;outline-offset:2px}`}</style>
     {screen==="loading"&&<Spinner text="DayGuide wird geladen..."/>}
-    {screen==="login"&&<Login onAuth={handleAuth}/>}
+    {screen==="login"&&<Login onAuth={handleAuth} onVerifyEmail={handleVerifyEmail}/>}
+    {screen==="verify-email"&&<VerifyEmail/>}
+    {screen==="reset-password"&&<PasswordReset onDone={handleAuth}/>}
     {screen==="dash"&&userId&&<Dashboard userId={userId} settings={appSettings} onSettings={setAppSettings}
       onStartChild={startChild} onLogout={handleLogout}/>}
     {screen==="child"&&childProfile&&<ChildMode profile={childProfile} tasks={childTasks} profileId={childProfileId}
