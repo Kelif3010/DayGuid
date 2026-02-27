@@ -216,6 +216,19 @@ export const settingsApi = {
   },
 }
 
+// ── Signed Media URLs ─────────────────────────────────
+const extractStoragePath = (urlOrPath: string): string => {
+  const m = urlOrPath.match(/\/storage\/v1\/object\/(?:public|sign(?:ed)?)\/media\/(.+?)(?:\?|$)/)
+  return m ? m[1] : urlOrPath
+}
+
+export const getSignedMediaUrl = async (pathOrUrl: string): Promise<string> => {
+  const path = extractStoragePath(pathOrUrl)
+  const { data, error } = await supabase.storage.from('media').createSignedUrl(path, 3600)
+  if (error || !data) throw error
+  return data.signedUrl
+}
+
 // ── Media Upload to Supabase Storage ─────────────────
 export const mediaUpload = async (
   file: File, userId: string, fileType: 'image' | 'video' | 'audio'
@@ -226,8 +239,7 @@ export const mediaUpload = async (
     cacheControl: '3600', upsert: false,
   })
   if (error) throw error
-  const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
-  return publicUrl
+  return path
 }
 
 export const mediaUploadBlob = async (

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { CheckCircle, Clock, HelpCircle, Pause, Play, Lock, Trash2, X as XIcon, Eye, EyeOff } from "lucide-react";
-import { supabase, auth, profilesApi, schedulesApi, tasksApi, completionsApi, stickersApi, settingsApi, mediaUpload, mediaUploadBlob } from "./lib/supabase";
+import { supabase, auth, profilesApi, schedulesApi, tasksApi, completionsApi, stickersApi, settingsApi, mediaUpload, mediaUploadBlob, getSignedMediaUrl } from "./lib/supabase";
 import type { Profile, Schedule, Task, AppSettings } from "./lib/supabase";
 
 /*══════════════════════════════════════════════════════════════
@@ -62,6 +62,22 @@ const getAvatar=(p:Profile,idx:number)=>p.avatar_url||AVATARS[idx%AVATARS.length
 const lbl:any={display:"block",fontSize:13,fontWeight:700,color:C.t2,marginBottom:6,fontFamily:F};
 const inp:any={width:"100%",padding:"11px 14px",borderRadius:12,border:`1.5px solid ${C.bdr}`,fontSize:14,
   fontFamily:F,color:C.t1,background:C.g50,outline:"none",marginBottom:14,boxSizing:"border-box" as const};
+
+// ═══ SIGNED URL HOOK ═════════════════════════════════════════
+const _urlCache=new Map<string,{url:string;exp:number}>();
+function useSignedUrl(pathOrUrl:string|null|undefined):string|null{
+  const [url,setUrl]=useState<string|null>(null);
+  useEffect(()=>{
+    if(!pathOrUrl){setUrl(null);return;}
+    if(pathOrUrl.startsWith('blob:')||pathOrUrl.startsWith('data:')){setUrl(pathOrUrl);return;}
+    const cached=_urlCache.get(pathOrUrl);
+    if(cached&&cached.exp>Date.now()){setUrl(cached.url);return;}
+    getSignedMediaUrl(pathOrUrl)
+      .then(s=>{_urlCache.set(pathOrUrl,{url:s,exp:Date.now()+3500000});setUrl(s);})
+      .catch(()=>setUrl(null));
+  },[pathOrUrl]);
+  return url;
+}
 
 // ═══ SPINNER ═════════════════════════════════════════════════
 function Spinner({text="Laden..."}:{text?:string}){
@@ -156,6 +172,7 @@ function Timeline({tasks,ci,doneSet}:{tasks:UITask[];ci:number;doneSet:Set<strin
 function AudioRec({onRecorded,existingUrl,userId}:{onRecorded:(url:string|null)=>void;existingUrl:string|null;userId:string}){
   const [rec,setRec]=useState(false);const [dur,setDur]=useState(0);const [url,setUrl]=useState(existingUrl);
   const [uploading,setUploading]=useState(false);
+  const signedAudio=useSignedUrl(url);
   const mr=useRef<MediaRecorder|null>(null);const chunks=useRef<Blob[]>([]);const tmr=useRef<any>(null);
   const start=async()=>{try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});
     const mimeType=MediaRecorder.isTypeSupported("audio/webm")?"audio/webm":"audio/mp4";
@@ -166,8 +183,10 @@ function AudioRec({onRecorded,existingUrl,userId}:{onRecorded:(url:string|null)=
       // Upload to Supabase
       setUploading(true);
       try{const ext=mimeType.includes("webm")?"webm":"mp4";
-        const pubUrl=await mediaUploadBlob(blob,userId,`recording_${Date.now()}.${ext}`);
-        setUrl(pubUrl);onRecorded(pubUrl);
+        const path=await mediaUploadBlob(blob,userId,`recording_${Date.now()}.${ext}`);
+        onRecorded(path);
+        try{const signed=await getSignedMediaUrl(path);setUrl(signed);}
+        catch{setUrl(path);}
       }catch(e){console.warn("Audio upload failed, using local URL");
         const localUrl=URL.createObjectURL(blob);setUrl(localUrl);onRecorded(localUrl);}
       setUploading(false);};
@@ -186,7 +205,7 @@ function AudioRec({onRecorded,existingUrl,userId}:{onRecorded:(url:string|null)=
           animation:"uploadPulse 1.2s ease-in-out infinite"}}/></div>
       <style>{`@keyframes uploadPulse{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style></div>
     :url&&!rec?<div style={{display:"flex",alignItems:"center",gap:8}}>
-      <audio src={url} controls style={{flex:1,height:36,borderRadius:8}}/>
+      <audio src={signedAudio||undefined} controls style={{flex:1,height:36,borderRadius:8}}/>
       <button onClick={del} tabIndex={0} style={{width:36,height:36,borderRadius:10,border:"none",background:C.err+"15",color:C.err,cursor:"pointer",
         display:"flex",alignItems:"center",justifyContent:"center"}}><Trash2 size={16}/></button></div>
     :rec?<div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -204,24 +223,24 @@ function AudioRec({onRecorded,existingUrl,userId}:{onRecorded:(url:string|null)=
 function MediaUp({accept,label,icon,onFile,currentUrl,userId,fileType}:
   {accept:string;label:string;icon:string;onFile:(url:string|null)=>void;currentUrl:string|null;userId:string;fileType:"image"|"video"}){
   const ref=useRef<HTMLInputElement>(null);const [uploading,setUploading]=useState(false);
-  const [preview,setPreview]=useState(currentUrl);const [prog,setProg]=useState<number|null>(null);
-  useEffect(()=>setPreview(currentUrl),[currentUrl]);
+  const [preview,setPreview]=useState<string|null>(null);const [prog,setProg]=useState<number|null>(null);
+  const signedCurrent=useSignedUrl(currentUrl);
+  useEffect(()=>{if(!uploading)setPreview(signedCurrent);},[signedCurrent,uploading]);
   const getVideoDuration=(f:File):Promise<number>=>new Promise(resolve=>{
     const v=document.createElement("video");v.preload="metadata";
     v.onloadedmetadata=()=>{URL.revokeObjectURL(v.src);resolve(v.duration);};
     v.onerror=()=>resolve(0);v.src=URL.createObjectURL(f);});
   const handle=async(e:any)=>{const f=e.target.files?.[0];if(!f)return;
+    if(f.type==="image/heic"||f.name.toLowerCase().endsWith(".heic")||f.name.toLowerCase().endsWith(".heif")){alert("HEIC/HEIF Bilder werden nicht unterstützt.\nBitte wähle ein JPEG oder PNG Bild.\n\nTipp: In den iPhone Einstellungen unter Kamera → Format → 'Maximale Kompatibilität' aktivieren.");(e.target as HTMLInputElement).value="";return;}
     if(fileType==="video"){const dur=await getVideoDuration(f);if(dur>30){alert("Das Video ist zu lang. Bitte wähle ein Video mit maximal 30 Sekunden.");(e.target as HTMLInputElement).value="";return;}}
     setUploading(true);setProg(10);
+    const localBlob=URL.createObjectURL(f);
+    setPreview(localBlob);setProg(40);
     try{
-      // Show local preview immediately
-      setPreview(URL.createObjectURL(f));setProg(40);
-      // Upload to Supabase Storage
-      const pubUrl=await mediaUpload(f,userId,fileType);
-      setProg(100);setPreview(pubUrl);onFile(pubUrl);
-    }catch(err){console.warn("Upload failed:",err);
-      // Keep local preview as fallback
-      onFile(preview);}
+      const path=await mediaUpload(f,userId,fileType);
+      const signed=await getSignedMediaUrl(path);
+      setProg(100);setPreview(signed);onFile(path);
+    }catch(err){console.warn("Upload failed:",err);onFile(null);}
     setProg(null);setUploading(false);};
   const rm=()=>{setPreview(null);onFile(null);};
   return <div>
@@ -490,6 +509,8 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
   const tmr=useRef<any>(null);const videoRef=useRef<HTMLVideoElement>(null);const notifRef=useRef<any>(null);
   const ct=tasks[ci];const nt=ci+1<tasks.length?tasks[ci+1]:null;
   const prog=tasks.length>0?done.size/tasks.length:0;
+  const signedImg=useSignedUrl(ct?.imageUrl);
+  const signedVid=useSignedUrl(ct?.videoUrl);
 
   // Timer
   useEffect(()=>{if(paused||trans||expired||allDone)return;
@@ -582,8 +603,8 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,minWidth:170}}>
         <div style={{width:170,height:170,borderRadius:28,background:ct.color||C.g200,display:"flex",alignItems:"center",justifyContent:"center",
           fontSize:80,boxShadow:"0 6px 24px rgba(0,0,0,0.08)",overflow:"hidden",animation:"fadeIn 0.35s ease-out"}}>
-          {ct.imageUrl?<img src={ct.imageUrl} alt={ct.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-          :ct.videoUrl?<video ref={videoRef} src={ct.videoUrl} autoPlay loop muted playsInline
+          {ct.imageUrl&&signedImg?<img src={signedImg} alt={ct.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+          :ct.videoUrl&&signedVid?<video ref={videoRef} src={signedVid} autoPlay loop muted playsInline
             onClick={e=>{const v=e.currentTarget;v.muted=!v.muted;}}
             style={{width:"100%",height:"100%",objectFit:"cover",cursor:"pointer"}}/>
           :ct.icon}</div>
@@ -659,6 +680,12 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
       @keyframes bounceIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
       @keyframes slideUp{0%{transform:translateY(25px);opacity:0}100%{transform:translateY(0);opacity:1}}`}</style>
   </div>;
+}
+
+// ═══ TASK THUMBNAIL ══════════════════════════════════════════
+function TaskThumb({imageUrl,icon}:{imageUrl:string|null|undefined;icon:string}){
+  const src=useSignedUrl(imageUrl??null);
+  return <>{imageUrl&&src?<img src={src} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:11}}/>:<>{icon}</>}</>;
 }
 
 // ═══ PARENT DASHBOARD ════════════════════════════════════════
@@ -887,7 +914,7 @@ function Dashboard({userId,settings,onSettings,onStartChild,onLogout}:
             <div style={{cursor:"grab",color:C.t3,fontSize:14,userSelect:"none"}}>⠿</div>
             <div style={{width:42,height:42,borderRadius:11,background:t.color||C.g200,display:"flex",alignItems:"center",justifyContent:"center",
               fontSize:22,flexShrink:0,overflow:"hidden"}}>
-              {t.imageUrl?<img src={t.imageUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:11}}/>:t.icon}</div>
+              <TaskThumb imageUrl={t.imageUrl} icon={t.icon}/></div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,color:C.t1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.name}</div>
               <div style={{fontSize:11,color:C.t2,marginTop:1}}>
