@@ -507,10 +507,12 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
   const [taskStartTime,setTaskStartTime]=useState(Date.now());
   const [allTodayStickers,setAllTodayStickers]=useState<string[]>([]);
   const tmr=useRef<any>(null);const videoRef=useRef<HTMLVideoElement>(null);const notifRef=useRef<any>(null);
+  const audioAutoRef=useRef<HTMLAudioElement|null>(null);const autoCiRef=useRef(-1);
   const ct=tasks[ci];const nt=ci+1<tasks.length?tasks[ci+1]:null;
   const prog=tasks.length>0?done.size/tasks.length:0;
   const signedImg=useSignedUrl(ct?.imageUrl);
   const signedVid=useSignedUrl(ct?.videoUrl);
+  const signedAudio=useSignedUrl(ct?.audioUrl);
 
   // Timer
   useEffect(()=>{if(paused||trans||expired||allDone)return;
@@ -533,7 +535,19 @@ function ChildMode({profile,tasks,profileId,settings,onExit}:
       // Try unmuting after short delay (works if user has interacted)
       setTimeout(()=>{try{v.muted=false;}catch{}},500);}
     setExtCount(0);setUsedHelp(false);setMidShown({h:false,e:false});setTaskStartTime(Date.now());
+    // Stop previous audio when task changes
+    if(audioAutoRef.current){audioAutoRef.current.pause();audioAutoRef.current=null;}
+    autoCiRef.current=-1;
   },[ci]);
+
+  // Audio autoplay when signed URL is ready
+  useEffect(()=>{
+    if(!signedAudio||autoCiRef.current===ci)return;
+    autoCiRef.current=ci;
+    const a=new Audio(signedAudio);audioAutoRef.current=a;
+    a.play().catch(()=>{});
+    return()=>{a.pause();};
+  },[signedAudio,ci]);
 
   // Wake Lock
   useEffect(()=>{let wl:any=null;
