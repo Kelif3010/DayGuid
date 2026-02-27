@@ -52,7 +52,8 @@ const dbToUI=(t:Task):UITask=>({id:t.id,name:t.name,startTime:t.start_time,durat
 const uiToDB=(t:UITask):Partial<Task>=>({name:t.name,start_time:t.startTime,duration_minutes:t.duration,
   icon_emoji:t.icon,color:t.color,sort_order:t.sortOrder,reminder_type:t.reminderType as any,
   enable_mid_reminders:t.enableMidReminders,tts_text:t.ttsText,mid_reminder_text:t.midReminderText,
-  image_url:t.imageUrl,video_url:t.videoUrl,audio_url:t.audioUrl,extension_minutes:t.extensionMinutes});
+  image_url:t.imageUrl ?? undefined,video_url:t.videoUrl ?? undefined,audio_url:t.audioUrl ?? undefined,
+  extension_minutes:t.extensionMinutes});
 
 const getAvatar=(p:Profile,idx:number)=>p.avatar_url||AVATARS[idx%AVATARS.length];
 
@@ -786,8 +787,7 @@ function Dashboard({userId,settings,onSettings,onStartChild,onLogout}:
             onKeyDown={e=>{if(e.key==="Enter")setEditing(t);}}
             style={{background:"white",borderRadius:13,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,
               boxShadow:dragIdx===idx?"0 4px 16px rgba(0,0,0,0.1)":"0 1px 3px rgba(0,0,0,0.03)",cursor:"pointer",
-              border:`1px solid ${C.bdr}`,transform:dragIdx===idx?"scale(1.02)":"scale(1)",transition:"all 0.1s",outline:"none",
-              ':focus':{boxShadow:`0 0 0 2px ${C.pri}`} as any}}>
+              border:`1px solid ${C.bdr}`,transform:dragIdx===idx?"scale(1.02)":"scale(1)",transition:"all 0.1s",outline:"none"}}>
             <div style={{cursor:"grab",color:C.t3,fontSize:14,userSelect:"none"}}>⠿</div>
             <div style={{width:42,height:42,borderRadius:11,background:t.color||C.g200,display:"flex",alignItems:"center",justifyContent:"center",
               fontSize:22,flexShrink:0,overflow:"hidden"}}>
