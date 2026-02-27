@@ -186,7 +186,7 @@ function AudioRec({onRecorded,existingUrl,userId}:{onRecorded:(url:string|null)=
         const path=await mediaUploadBlob(blob,userId,`recording_${Date.now()}.${ext}`);
         onRecorded(path);
         try{const signed=await getSignedMediaUrl(path);setUrl(signed);}
-        catch{setUrl(path);}
+        catch(e){console.warn("Signed URL failed:",e);/* url bleibt null - useSignedUrl Hook übernimmt */}
       }catch(e){console.warn("Audio upload failed, using local URL");
         const localUrl=URL.createObjectURL(blob);setUrl(localUrl);onRecorded(localUrl);}
       setUploading(false);};
